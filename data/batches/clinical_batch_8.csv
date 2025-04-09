@@ -1,0 +1,5 @@
+donor_id,age_in_years,initial_kps,egfr_amplification_encoded,mgmt_methylation_encoded,Classical,Mesenchymal,Neural,Proneural,survival_days,extent_of_resection_encoded,surgery_encoded
+161243620,51,80,-1,0,0,0,1,0,456.0,0,0
+277805907,43,90,0,0,0,1,0,0,363.0,0,1
+277857061,64,90,-1,0,1,0,0,0,72.0,0,1
+286825896,57,70,-1,0,0,0,0,1,62.0,0,0
