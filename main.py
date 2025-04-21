@@ -18,7 +18,7 @@ if __name__ == "__main__":
         print(f"Training on batch {batch_idx} with {len(donor_ids)} donors...")
 
         dataset = ISHImageDataset(
-            donor_ids=donor_ids,
+            batch_ids=donor_ids,
             clinical_df=df,
             image_type='primary',  # could also use 'expression', 'annotation', etc.
         )

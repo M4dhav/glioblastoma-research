@@ -1,48 +1,67 @@
-from torch.utils.data import Dataset
-import torchvision.transforms as transforms
-from open_dataset_tools.ivy_gap_utils import section_image_loader
-import io
-from PIL import Image
-import torch
+import os
+import pickle
 import pandas as pd
-
+import torch
+from torch.utils.data import Dataset
+from open_dataset_tools.ivy_gap_utils import section_image_loader
+from PIL import Image
+import io
+import torchvision.transforms as transforms
 
 class ISHImageDataset(Dataset):
-    def __init__(self, donor_ids, clinical_df, image_type='primary', transform=None):
-        self.donor_ids = donor_ids
-        self.clinical_df = clinical_df
-        self.image_type = image_type
-        self.transform = transform or transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor()
-        ])
+    def __init__(self, batch_ids, clinical_data_path, section_metadata_path, transform=None):
+        self.batch_ids = batch_ids
+        self.clinical_data_path = clinical_data_path
+        self.section_metadata_path = section_metadata_path
+        self.transform = transform
+
+        self.section_metadata = pd.read_csv(self.section_metadata_path)
+        self.clinical_data = self.load_clinical_data()
         self.image_data = self.load_images()
 
+    def load_clinical_data(self):
+        with open(self.clinical_data_path, 'rb') as f:
+            clinical_df = pickle.load(f)
+        clinical_df = clinical_df[clinical_df['donor_id'].isin(self.batch_ids)]
+        return clinical_df
+
     def load_images(self):
-        section_meta = pd.read_csv('data/section_metadata.csv')
-        section_meta = section_meta[section_meta['donor_id'].isin(self.donor_ids)]
+        image_data = {}
+        for donor_id in self.batch_ids:
+            try:
+                section_rows = self.section_metadata[self.section_metadata['section_data_set_id'] == donor_id]
+                if section_rows.empty:
+                    print(f"No section metadata found for donor {donor_id}")
+                    continue
 
-        section_images = section_image_loader(
-            section_meta_table=section_meta,
-            section_data_set_id=section_meta['section_data_set_id'].tolist(),
-            verbose=True
-        )
+                section_image_table = section_image_loader(
+                    section_meta_table=section_rows,
+                    section_data_set_id=donor_id,
+                    verbose=True
+                )
 
-        return [
-            (img.load(), row['donor_id']) 
-            for img, row in zip(section_images[self.image_type], section_meta.itertuples())
-        ]
+                donor_images = []
+                for img_promise in section_image_table["primary"]:
+                    image = img_promise.load()
+                    if self.transform:
+                        image = self.transform(image)
+                    else:
+                        image = transforms.ToTensor()(image)
+                    donor_images.append(image)
+                image_data[donor_id] = donor_images
+
+            except Exception as e:
+                print(f"Error loading images for donor {donor_id}: {e}")
+
+        return image_data
 
     def __len__(self):
-        return len(self.image_data)
+        return len(self.batch_ids)
 
     def __getitem__(self, idx):
-        image, donor_id = self.image_data[idx]
-        image = Image.open(io.BytesIO(image.tobytes())).convert("RGB")
-        image = self.transform(image)
+        donor_id = self.batch_ids[idx]
+        donor_clinical = self.clinical_data[self.clinical_data['donor_id'] == donor_id].iloc[0]
+        survival_days = donor_clinical['survival_days']
+        images = self.image_data.get(donor_id, [])
 
-        clinical_row = self.clinical_df[self.clinical_df['donor_id'] == donor_id].iloc[0]
-        clinical_features = torch.tensor(clinical_row.drop('survival_days').values, dtype=torch.float)
-        label = torch.tensor(clinical_row['survival_days'], dtype=torch.float)
-
-        return image, clinical_features, label
+        return images, torch.tensor(survival_days, dtype=torch.float32)
