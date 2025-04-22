@@ -20,8 +20,8 @@ class ISHImageDataset(Dataset):
         self.image_data = self.load_images()
 
     def load_clinical_data(self):
-        with open(self.clinical_data_path, 'rb') as f:
-            clinical_df = pickle.load(f)
+        
+        clinical_df = pd.read_csv(self.clinical_data_path)
         clinical_df = clinical_df[clinical_df['donor_id'].isin(self.batch_ids)]
         return clinical_df
 
