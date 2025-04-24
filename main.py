@@ -23,8 +23,8 @@ if __name__ == "__main__":
             # clinical_df=df,
             clinical_data_path= "data/donor_metadata.csv",
             section_metadata_path="data/section_metadata.csv",
-            image_type='primary',  # could also use 'expression', 'annotation', etc.
+            # image_type='primary',  # could also use 'expression', 'annotation', etc.
         )
-
+        print(dataset)
         model = MultimodalSurvivalModel(clinical_input_size=dataset[0][1].shape[0])
         train_model(model, dataset, epochs=10)

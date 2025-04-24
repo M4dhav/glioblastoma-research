@@ -29,25 +29,31 @@ class ISHImageDataset(Dataset):
         image_data = {}
         for donor_id in self.batch_ids:
             try:
-                section_rows = self.section_metadata[self.section_metadata['section_data_set_id'] == donor_id]
+                section_rows = self.section_metadata[self.section_metadata['donor_id'].astype(str) == str(donor_id)]
                 if section_rows.empty:
                     print(f"No section metadata found for donor {donor_id}")
                     continue
-
-                section_image_table = section_image_loader(
-                    section_meta_table=section_rows,
-                    section_data_set_id=donor_id,
-                    verbose=True
-                )
-
+                # print("here 1")
+               # filtered_section_dataset = self.section_metadata[self.section_metadata['donor_id'] == donor_id]
+                section_data_set_ids = section_rows['section_data_set_id'].tolist()
+                # print("here 2")
                 donor_images = []
-                for img_promise in section_image_table["primary"]:
-                    image = img_promise.load()
-                    if self.transform:
-                        image = self.transform(image)
-                    else:
-                        image = transforms.ToTensor()(image)
-                    donor_images.append(image)
+                for section_id in section_data_set_ids:
+                    # print("here 3")
+                    section_image_table = section_image_loader(
+                        section_meta_table=self.section_metadata,
+                        section_data_set_id=[section_id],
+                        verbose=True
+                    )
+
+                    
+                    for img_promise in section_image_table["primary"]:
+                        image = img_promise.load()
+                        if self.transform:
+                            image = self.transform(image)
+                        else:
+                            image = transforms.ToTensor()(image)
+                        donor_images.append(image)
                 image_data[donor_id] = donor_images
 
             except Exception as e:
